@@ -1,10 +1,18 @@
 const { prisma } = require("../config/config");
+const {
+  productSchema,
+  updateProductSchema,
+  categorySchema,
+} = require("../schemas/product.schema");
 
 const getProducts = async (req, res) => {
   try {
     const result = await prisma.product.findMany({
       where: {
         estado: true,
+      },
+      include: {
+        categoria: true,
       },
     });
     res.status(200).json({
@@ -31,117 +39,16 @@ const createProduct = async (req, res) => {
   try {
     const { nombre, precio, stock, imagen, IdCategoria } = req.body;
 
-    // Validaciones
-    if (!nombre) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El nombre del producto es un valor requerido!",
-          status: 400,
-        },
-      });
-    }
+    const { error, value } = productSchema.validate(req.body);
 
-    if (typeof nombre !== "string") {
+    if (error) {
       return res.status(400).json({
         header: {
           ok: false,
-          message: "El nombre del producto tiene que ser un string",
+          message: error.details[0]?.message,
           status: 400,
         },
       });
-    }
-
-    if (nombre.length >= 20) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El nombre debe contener máximo 20 caracteres",
-          status: 400,
-        },
-      });
-    }
-
-    if (precio == null) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El precio del producto es un valor requerido!",
-          status: 400,
-        },
-      });
-    }
-
-    if (isNaN(precio)) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El precio debe ser un valor entero o decimal!",
-          status: 400,
-        },
-      });
-    }
-
-    if (precio <= 0) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El precio no puede tener un valor negativo o cero",
-          status: 400,
-        },
-      });
-    }
-    if (stock) {
-      if (typeof stock !== "boolean") {
-        return res.status(400).json({
-          header: {
-            ok: false,
-            message: "El stock deber ser un valor booleano",
-            status: 400,
-          },
-        });
-      }
-    }
-
-    if (!imagen) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "La imagen es un valor requerido!",
-          status: 400,
-        },
-      });
-    }
-
-    if (typeof imagen !== "string") {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El valor de la imagen tiene que ser un string!",
-          status: 400,
-        },
-      });
-    }
-
-    if (imagen.length >= 80) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El valor de la imagen debe contener máximo 80 caracteres",
-          status: 400,
-        },
-      });
-    }
-    if (IdCategoria) {
-      if (isNaN(IdCategoria)) {
-        return res.status(400).json({
-          header: {
-            ok: false,
-            message: "El Id de la categoría debe ser un entero",
-            status: 400,
-          },
-        });
-      }
     }
 
     const product = await prisma.product.findFirst({
@@ -149,15 +56,30 @@ const createProduct = async (req, res) => {
         nombre: nombre,
       },
     });
-
     if (product) {
-      return res.status(400).json({
+      return res.status(409).json({
         header: {
           ok: false,
           message: "El producto ya ha sido creado!",
-          status: 400,
+          status: 409,
         },
       });
+    }
+
+    if (IdCategoria) {
+      const category = await prisma.category.findFirst({
+        where: { IdCategoria: +IdCategoria },
+      });
+
+      if (!category) {
+        return res.status(409).json({
+          header: {
+            ok: false,
+            message: "La categoría indicada no existe!",
+            status: 409,
+          },
+        });
+      }
     }
 
     const result = await prisma.product.create({
@@ -196,7 +118,46 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { IdProducto } = req.params;
-    const { nombre, precio, stock, imagen, IdCategoria } = req.body;
+
+    const isValidProcess = await prisma.product.findFirst({
+      where: { IdProducto: +IdProducto },
+    });
+
+    if (!isValidProcess) {
+      return res.status(404).json({
+        header: {
+          ok: false,
+          message: "Producto no encontrado",
+          status: 404,
+        },
+      });
+    }
+
+    const { error, value } = updateProductSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        header: {
+          ok: false,
+          message: error.details[0]?.message,
+          status: 400,
+        },
+      });
+    }
+    if (req.body.IdCategoria) {
+      const category = await prisma.category.findFirst({
+        where: { IdCategoria: +req.body.IdCategoria },
+      });
+
+      if (!category) {
+        return res.status(409).json({
+          header: {
+            ok: false,
+            message: "La categoría indicada no existe!",
+            status: 409,
+          },
+        });
+      }
+    }
 
     const result = await prisma.product.update({
       where: { IdProducto: Number(IdProducto) },
@@ -225,9 +186,51 @@ const updateProduct = async (req, res) => {
   }
 };
 
+const findProductoById = async (req, res) => {
+  try {
+    const { IdProducto } = req.params;
+    const isValidProcess = await prisma.product.findFirst({
+      where: { IdProducto: +IdProducto },
+      include: { categoria: true },
+    });
+
+    if (!isValidProcess) {
+      return res.status(404).json({
+        header: {
+          ok: false,
+          message: "Producto no encontrado",
+          status: 404,
+        },
+      });
+    }
+
+    res.status(200).json({
+      header: {
+        ok: true,
+        message: "Operation was successfully",
+        status: 200,
+      },
+      data: isValidProcess,
+    });
+  } catch (error) {}
+};
+
 const deleteProduct = async (req, res) => {
   try {
     const { IdProducto } = req.params;
+    const isValidProcess = await prisma.product.findFirst({
+      where: { IdProducto: +IdProducto },
+    });
+
+    if (!isValidProcess) {
+      return res.status(404).json({
+        header: {
+          ok: false,
+          message: "Producto no encontrado",
+          status: 404,
+        },
+      });
+    }
 
     await prisma.product.update({
       where: { IdProducto: Number(IdProducto) },
@@ -255,4 +258,90 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-module.exports = { getProducts, createProduct, updateProduct, deleteProduct };
+const crearCategory = async (req, res) => {
+  try {
+    const { nombre, imagen } = req.body;
+    const { error, value } = categorySchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        header: {
+          ok: false,
+          message: error.details[0]?.message,
+          status: 500,
+        },
+      });
+    }
+
+    const category = await prisma.category.findFirst({
+      where: { nombre: nombre },
+    });
+
+    if (category) {
+      return res.status(409).json({
+        header: {
+          ok: false,
+          message: "La categoría ya ha sido creada!",
+          status: 409,
+        },
+      });
+    }
+
+    const result = await prisma.category.create({
+      data: {
+        imagen,
+        nombre,
+      },
+    });
+    res.status(201).json({
+      header: {
+        ok: true,
+        message: "Operation was successfully",
+        status: 201,
+      },
+      data: result,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({
+      header: {
+        ok: false,
+        message: "The operation had an error",
+        status: 500,
+      },
+    });
+  }
+};
+
+const listarCategorias = async (req, res) => {
+  try {
+    const result = await prisma.category.findMany({
+      include: { productos: true },
+    });
+    res.status(200).json({
+      header: {
+        ok: true,
+        message: "Operation was successful",
+        status: 200,
+      },
+      data: result,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({
+      header: {
+        ok: false,
+        message: "The operation had an error",
+        status: 500,
+      },
+    });
+  }
+};
+module.exports = {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  findProductoById,
+  crearCategory,
+  listarCategorias,
+};

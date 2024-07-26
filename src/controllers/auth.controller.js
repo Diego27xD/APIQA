@@ -1,6 +1,7 @@
 const { prisma } = require("../config/config");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { userSchema, loginSchema } = require("../schemas/product.schema");
 
 // Secret key for JWT (should be in your environment variables)
 const JWT_SECRET = process.env.JWT_SECRET || "djañsjdkasjdasdj1231";
@@ -9,37 +10,17 @@ const JWT_SECRET = process.env.JWT_SECRET || "djañsjdkasjdasdj1231";
 const registrarUser = async (req, res) => {
   try {
     const { nombre, correo, password } = req.body;
-
-    // Validaciones básicas
-    if (!nombre) {
+    const { error, value } = userSchema.validate(req.body);
+    if (error) {
       return res.status(400).json({
         header: {
           ok: false,
-          message: "El campo nombre es requerido",
+          message: error.details[0]?.message,
           status: 400,
         },
       });
     }
 
-    if (!correo) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El campo correo es requerido",
-          status: 400,
-        },
-      });
-    }
-
-    if (!password) {
-      return res.status(400).json({
-        header: {
-          ok: false,
-          message: "El campo password es requerido",
-          status: 400,
-        },
-      });
-    }
     // Verificar si el correo o el usuario ya existen
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -48,7 +29,7 @@ const registrarUser = async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({
+      return res.status(409).json({
         header: {
           ok: false,
           message: "El correo ya está en uso",
@@ -100,18 +81,17 @@ const registrarUser = async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { correo, password } = req.body;
-
+    const { error, value } = loginSchema.validate(req.body);
     // Validaciones básicas
-    if (!correo || !password) {
+    if (error) {
       return res.status(400).json({
         header: {
           ok: false,
-          message: "Correo y contraseña son obligatorios",
+          message: error.details[0]?.message,
           status: 400,
         },
       });
     }
-
     // Buscar el usuario en la base de datos
     const user = await prisma.user.findFirst({
       where: { correo },

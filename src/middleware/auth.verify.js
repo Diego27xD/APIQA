@@ -4,8 +4,8 @@ const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "djañsjdkasjdasdj1231";
 const authenticateToken = (req, res, next) => {
   // Extraer el token de los encabezados de la solicitud
-  const token = req.headers["authorization"].split(" ")[1];
-  console.log(token);
+  const token = req.headers["authorization"]?.split(" ")[1];
+
   if (!token) {
     return res.status(401).json({
       header: {
