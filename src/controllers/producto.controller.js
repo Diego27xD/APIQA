@@ -351,6 +351,16 @@ const findCategoryById = async (req, res) => {
   try {
     let { IdCategoria } = req.query;
 
+    if (!IdCategoria) {
+      return res.status(400).json({
+        header: {
+          ok: false,
+          message: "Necesitas pasar el IdCategoria",
+          status: 400,
+        },
+      });
+    }
+
     const result = await prisma.category.findFirst({
       where: {
         IdCategoria: +IdCategoria,
