@@ -14,6 +14,9 @@ const getProducts = async (req, res) => {
       include: {
         categoria: true,
       },
+      orderBy: {
+        fechaCreacion: "asc",
+      },
     });
     res.status(200).json({
       header: {
@@ -91,6 +94,7 @@ const createProduct = async (req, res) => {
         stock,
       },
       select: {
+        IdProducto: true,
         nombre: true,
       },
     });
@@ -133,7 +137,7 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    const { error, value } = updateProductSchema.validate(req.body);
+    const { error, value } = productSchema.validate(req.body);
     if (error) {
       return res.status(400).json({
         header: {
@@ -212,7 +216,16 @@ const findProductoById = async (req, res) => {
       },
       data: isValidProcess,
     });
-  } catch (error) {}
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({
+      header: {
+        ok: false,
+        message: "The operation had an error",
+        status: 500,
+      },
+    });
+  }
 };
 
 const deleteProduct = async (req, res) => {
@@ -232,11 +245,8 @@ const deleteProduct = async (req, res) => {
       });
     }
 
-    await prisma.product.update({
+    await prisma.product.delete({
       where: { IdProducto: Number(IdProducto) },
-      data: {
-        estado: false,
-      },
     });
 
     res.status(201).json({
@@ -336,6 +346,49 @@ const listarCategorias = async (req, res) => {
     });
   }
 };
+
+const findCategoryById = async (req, res) => {
+  try {
+    let { IdCategoria } = req.query;
+
+    const result = await prisma.category.findFirst({
+      where: {
+        IdCategoria: +IdCategoria,
+      },
+      include: {
+        productos: true,
+      },
+    });
+
+    if (!result) {
+      return res.status(404).json({
+        header: {
+          ok: false,
+          message: "Categoría no encontrada",
+          status: 404,
+        },
+      });
+    }
+
+    res.status(200).json({
+      header: {
+        ok: true,
+        message: "Operation was successfully",
+        status: 200,
+      },
+      data: result,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({
+      header: {
+        ok: false,
+        message: "The operation had an error",
+        status: 500,
+      },
+    });
+  }
+};
 module.exports = {
   getProducts,
   createProduct,
@@ -344,4 +397,5 @@ module.exports = {
   findProductoById,
   crearCategory,
   listarCategorias,
+  findCategoryById,
 };

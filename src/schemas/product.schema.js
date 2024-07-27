@@ -23,8 +23,10 @@ const productSchema = Joi.object({
     "boolean.base": "El stock debe ser un valor booleano.",
     "any.required": "El stock es un campo obligatorio.",
   }),
-  IdCategoria: Joi.number().optional().messages({
+  IdCategoria: Joi.number().min(1).required().messages({
+    "any.required": "El IdCategoria es un campo obligatorio.",
     "number.base": "El IdCategoria debe ser un número.",
+    "number.min": "El IdCategoria no puede ser 0 o negativo.",
   }),
 });
 
