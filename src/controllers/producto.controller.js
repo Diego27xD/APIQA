@@ -277,7 +277,7 @@ const crearCategory = async (req, res) => {
         header: {
           ok: false,
           message: error.details[0]?.message,
-          status: 500,
+          status: 400,
         },
       });
     }
